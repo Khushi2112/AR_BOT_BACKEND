@@ -81,10 +81,18 @@ export const syncExcelToDb = async () => {
         const rows = [];
         worksheet.eachRow((row, rowNumber) => {
             if (rowNumber > 1) { // Skip header
-                // Use .value to get the actual value, and toString() for safety
-                const companyName = row.getCell(1).value?.toString()?.trim();
-                const toEmail = row.getCell(2).value?.toString()?.trim();
-                const ccEmail = row.getCell(3).value?.toString()?.trim();
+                const getCellValue = (cell) => {
+                    const val = cell.value;
+                    if (val && typeof val === 'object') {
+                        // Handle hyperlinks, formulas, or rich text
+                        return (val.text || val.result || val.richText?.[0]?.text || '').toString().trim();
+                    }
+                    return val?.toString()?.trim() || '';
+                };
+
+                const companyName = getCellValue(row.getCell(1));
+                const toEmail = getCellValue(row.getCell(2));
+                const ccEmail = getCellValue(row.getCell(3));
 
                 if (companyName) {
                     rows.push({ companyName, toEmail, ccEmail });
