@@ -2,9 +2,12 @@ import ExcelJS from 'exceljs';
 import path from 'path';
 import CustomerEmail from '../models/CustomerEmail.js';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-export const EXCEL_FILE_PATH = path.join(process.cwd(), 'output', 'customers.xlsx');
+export const EXCEL_FILE_PATH = path.resolve(__dirname, '..', 'output', 'customers.xlsx');
 
 // Ensure the directory exists
 const outputDir = path.dirname(EXCEL_FILE_PATH);
@@ -105,7 +108,8 @@ export const syncExcelToDb = async () => {
         console.log(`Found ${rows.length} valid rows in Excel.`);
 
         for (const rowData of rows) {
-            await CustomerEmail.findOneAndUpdate(
+            console.log(`Updating DB for: [${rowData.companyName}] -> To: [${rowData.toEmail}], CC: [${rowData.ccEmail}]`);
+            const result = await CustomerEmail.findOneAndUpdate(
                 { companyName: rowData.companyName },
                 {
                     companyName: rowData.companyName,
@@ -114,6 +118,11 @@ export const syncExcelToDb = async () => {
                 },
                 { upsert: true, new: true }
             );
+            if (result) {
+                console.log(`Successfully updated DB record ID: ${result._id}`);
+            } else {
+                console.warn(`FAILED to update DB record for: ${rowData.companyName}`);
+            }
         }
         console.log('Database sync from Excel complete.');
         console.log('--- END syncExcelToDb ---');
