@@ -1,11 +1,32 @@
-import express from 'express';
 import CustomerEmail from '../models/CustomerEmail.js';
+import Invoice from '../models/Invoice.js';
 
 const router = express.Router();
 
-// GET all customer emails
+// GET all customer emails (with auto-sync from Invoices)
 router.get('/', async (req, res) => {
     try {
+        // 1. Get all unique company names from Invoices
+        const uniqueCompanies = await Invoice.distinct('companyName');
+
+        // 2. Ensure each exists in CustomerEmail collection
+        const existingCompanies = await CustomerEmail.find({
+            companyName: { $in: uniqueCompanies }
+        });
+
+        const existingNames = new Set(existingCompanies.map(c => c.companyName));
+        const missingNames = uniqueCompanies.filter(name => name && !existingNames.has(name));
+
+        if (missingNames.length > 0) {
+            const newEntries = missingNames.map(name => ({
+                companyName: name,
+                toEmails: [],
+                ccEmails: []
+            }));
+            await CustomerEmail.insertMany(newEntries, { ordered: false });
+        }
+
+        // 3. Return all customer emails
         const customers = await CustomerEmail.find().sort({ companyName: 1 });
         res.json(customers);
     } catch (error) {
