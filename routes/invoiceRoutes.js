@@ -129,17 +129,6 @@ router.post('/', async (req, res) => {
         const invoice = new Invoice(req.body);
         const newInvoice = await invoice.save();
 
-        // Sync to customer_emails
-        if (req.body.companyName) {
-            await CustomerEmail.findOneAndUpdate(
-                { companyName: req.body.companyName },
-                { companyName: req.body.companyName },
-                { upsert: true, new: true }
-            );
-        }
-
-
-
         res.status(201).json(newInvoice);
     } catch (error) {
         res.status(400).json({ message: error.message });
@@ -154,16 +143,6 @@ router.put('/:id', async (req, res) => {
             req.body,
             { new: true }
         );
-
-        if (req.body.companyName) {
-            await CustomerEmail.findOneAndUpdate(
-                { companyName: req.body.companyName },
-                { companyName: req.body.companyName },
-                { upsert: true, new: true }
-            );
-        }
-
-
 
         res.json(updatedInvoice);
     } catch (error) {
