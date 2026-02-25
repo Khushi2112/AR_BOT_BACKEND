@@ -1,12 +1,7 @@
 import express from 'express';
-import multer from 'multer';
 import CustomerEmail from '../models/CustomerEmail.js';
 
-import path from 'path';
-import fs from 'fs';
-
 const router = express.Router();
-const upload = multer({ dest: 'uploads/' });
 
 // GET all customer emails
 router.get('/', async (req, res) => {
@@ -18,20 +13,61 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET a single customer email by ID
+router.get('/:id', async (req, res) => {
+    try {
+        const customer = await CustomerEmail.findById(req.params.id);
+        if (!customer) return res.status(404).json({ message: 'Company not found' });
+        res.json(customer);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // POST a new customer email (manual add)
 router.post('/', async (req, res) => {
     try {
         const customer = new CustomerEmail(req.body);
         const newCustomer = await customer.save();
-
-
-
         res.status(201).json(newCustomer);
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
 });
 
+// PUT update a customer email
+router.put('/:id', async (req, res) => {
+    try {
+        const { toEmails, ccEmails } = req.body;
 
+        if (toEmails && toEmails.length > 4) {
+            return res.status(400).json({ message: 'Maximum of 4 TO email addresses are allowed.' });
+        }
+        if (ccEmails && ccEmails.length > 8) {
+            return res.status(400).json({ message: 'Maximum of 8 CC email addresses are allowed.' });
+        }
+
+        const updated = await CustomerEmail.findByIdAndUpdate(
+            req.params.id,
+            { $set: req.body },
+            { new: true, runValidators: true }
+        );
+        if (!updated) return res.status(404).json({ message: 'Company not found' });
+        res.json(updated);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
+// DELETE a customer email
+router.delete('/:id', async (req, res) => {
+    try {
+        const deleted = await CustomerEmail.findByIdAndDelete(req.params.id);
+        if (!deleted) return res.status(404).json({ message: 'Company not found' });
+        res.json({ message: 'Company deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
 
 export default router;

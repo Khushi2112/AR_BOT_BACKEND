@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import memberRoutes from './routes/memberRoutes.js';
 import customerEmailRoutes from './routes/customerEmailRoutes.js';
+import mailRoutes from './routes/mailRoutes.js';
 
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use(express.json());
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/customer-emails', customerEmailRoutes);
+app.use('/api/mail', mailRoutes);
 
 // Health Check
 app.get('/', (req, res) => {

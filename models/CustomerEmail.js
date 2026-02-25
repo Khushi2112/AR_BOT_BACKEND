@@ -7,21 +7,25 @@ const customerEmailSchema = new mongoose.Schema({
         unique: true,
         trim: true
     },
-    toEmail: {
-        type: String,
-        trim: true,
-        lowercase: true,
-        default: ''
+    toEmails: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: (arr) => arr.length <= 4,
+            message: 'Maximum of 4 TO email addresses are allowed.'
+        }
     },
-    ccEmail: {
-        type: String,
-        trim: true,
-        lowercase: true,
-        default: ''
+    ccEmails: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: (arr) => arr.length <= 8,
+            message: 'Maximum of 8 CC email addresses are allowed.'
+        }
     }
 }, {
     timestamps: true,
-    collection: 'customer_emails' // Explicitly setting collection name as requested
+    collection: 'customer_emails'
 });
 
 const CustomerEmail = mongoose.model('CustomerEmail', customerEmailSchema);
