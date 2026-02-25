@@ -50,6 +50,7 @@ export const getInvoiceEmailTemplate = (invoices, { senderName, fromEmail, sende
                 <td style="border: 1px solid #999; padding: 8px;">${fmt(invoice.subtotal)}</td>
                 <td style="border: 1px solid #999; padding: 8px;">${fmt(invoice.GST_Amount)}</td>
                 <td style="border: 1px solid #999; padding: 8px;">${fmt(invoice.total_Amount)}</td>
+                <td style="border: 1px solid #999; padding: 8px; font-weight: bold; background-color: #fffff0;">${fmt(invoice.balance_due)}</td>
             </tr>
         `;
     }).join('');
@@ -61,7 +62,7 @@ export const getInvoiceEmailTemplate = (invoices, { senderName, fromEmail, sende
         <p>The Invoice’s given below will be due on the due date’s mentioned in the table below. We request you to arrange for its payment on its due date.</p>
         <br/>
 
-        <table style="width: 100%; border-collapse: collapse; border: 1px solid #999; font-size: 11px;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #999; font-size: 10px;">
             <tr style="background-color: #bfbfbf; font-weight: bold; text-align: center;">
                 <th style="border: 1px solid #999; padding: 6px;">Invoice Date</th>
                 <th style="border: 1px solid #999; padding: 6px;">Due Date</th>
@@ -70,11 +71,12 @@ export const getInvoiceEmailTemplate = (invoices, { senderName, fromEmail, sende
                 <th style="border: 1px solid #999; padding: 6px;">OverDue By / Due Within</th>
                 <th style="border: 1px solid #999; padding: 6px;">Invoice No.</th>
                 <th style="border: 1px solid #999; padding: 6px;">Customer Name</th>
-                <th style="border: 1px solid #999; padding: 6px;">Payment Status</th>
+                <th style="border: 1px solid #999; padding: 6px;">Status</th>
                 <th style="border: 1px solid #999; padding: 6px;">USD</th>
                 <th style="border: 1px solid #999; padding: 6px;">Gross INR</th>
                 <th style="border: 1px solid #999; padding: 6px;">GST</th>
-                <th style="border: 1px solid #999; padding: 6px;">Total Invoice Amount</th>
+                <th style="border: 1px solid #999; padding: 6px;">Total</th>
+                <th style="border: 1px solid #999; padding: 6px; background-color: #ffd700;">Balance Due</th>
             </tr>
             ${rows}
         </table>
