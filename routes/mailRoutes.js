@@ -1,5 +1,5 @@
 import express from 'express';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import Invoice from '../models/Invoice.js';
 import CustomerEmail from '../models/CustomerEmail.js';
 import path from 'path';
@@ -13,27 +13,8 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Create transporter - configured via environment variables
-const createTransporter = () => {
-    console.log('[MAIL] Creating transporter with:', process.env.EMAIL_USER);
-    // Using explicit host/port instead of "service: gmail" to avoid IPv6 issues (ENETUNREACH)
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true, // SSL/TLS
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-        connectionTimeout: 20000,
-        greetingTimeout: 20000,
-        socketTimeout: 30000,
-        tls: {
-            rejectUnauthorized: false, // Helps in some cloud environments
-            servername: 'smtp.gmail.com'
-        }
-    });
-};
+// Initialize Resend with API Key
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // GET /api/mail/preview/:invoiceId
 router.get('/preview/:invoiceId', async (req, res) => {
@@ -92,18 +73,12 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             return res.status(400).json({ message: 'No TO email addresses configured for this company. Please add them in Company Emails page.' });
         }
 
-        console.log(`[MAIL] Starting send-invoice for company: ${invoice.companyName}`);
+        console.log(`[MAIL] Starting send-invoice via RESEND for company: ${invoice.companyName}`);
         console.log(`[MAIL] From: ${fromEmail}, To: ${toEmails.join(', ')}`);
 
-        const transporter = createTransporter();
-        console.log('[MAIL] Transporter created. Verifying connection...');
-
-        try {
-            await transporter.verify();
-            console.log('[MAIL] SMTP Connection verified successfully');
-        } catch (verifyErr) {
-            console.error('[MAIL] SMTP Verification FAILED:', verifyErr);
-            throw new Error(`SMTP Connection Failed: ${verifyErr.message}`);
+        if (!process.env.RESEND_API_KEY) {
+            console.error('[MAIL] RESEND_API_KEY is missing');
+            return res.status(500).json({ message: 'Resend API Key is not configured in environment variables.' });
         }
 
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || invoice._id.toString().slice(-6).toUpperCase();
@@ -121,39 +96,45 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
         const logo2Path = path.resolve(__dirname, '../../frontend/image/Picture2.png');
 
         const attachments = [];
-        if (fs.existsSync(logo1Path)) {
-            attachments.push({
-                filename: 'Picture1.png',
-                path: logo1Path,
-                cid: 'logo1'
-            });
-        }
-        if (fs.existsSync(logo2Path)) {
-            attachments.push({
-                filename: 'Picture2.png',
-                path: logo2Path,
-                cid: 'logo2'
-            });
+        try {
+            if (fs.existsSync(logo1Path)) {
+                attachments.push({
+                    filename: 'Picture1.png',
+                    content: fs.readFileSync(logo1Path),
+                });
+            }
+            if (fs.existsSync(logo2Path)) {
+                attachments.push({
+                    filename: 'Picture2.png',
+                    content: fs.readFileSync(logo2Path),
+                });
+            }
+        } catch (atErr) {
+            console.warn('[MAIL] Failed to attach logos:', atErr.message);
         }
 
-        const mailOptions = {
-            from: `"${senderName || 'Accounts Receivable Team'}" <${process.env.EMAIL_USER}>`, // Use authenticated user for from
-            replyTo: fromEmail || process.env.EMAIL_USER,
-            to: toEmails.join(', '),
-            cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
+        console.log(`[MAIL] Attempting to deliver via Resend API...`);
+
+        const { data, error } = await resend.emails.send({
+            from: `${senderName || 'AR System'} <onboarding@resend.dev>`, // Default Resend domain unless verified
+            reply_to: fromEmail,
+            to: toEmails,
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
             subject: `Invoice Overdue/Due Notice — ${invoice.companyName}`,
             html: htmlBody,
             attachments: attachments
-        };
+        });
 
-        console.log(`[MAIL] Attempting to deliver via Nodemailer to ${mailOptions.to}...`);
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[MAIL] Success! MessageId: ${info.messageId}`);
-        console.log(`[MAIL] Response: ${info.response}`);
+        if (error) {
+            console.error('[MAIL] Resend API Error:', error);
+            return res.status(400).json({ message: 'Resend delivery failed', error });
+        }
+
+        console.log(`[MAIL] Success! MessageId: ${data.id}`);
 
         res.json({
-            message: `Email sent successfully to ${toEmails.length} recipient(s).`,
-            messageId: info.messageId,
+            message: `Email sent successfully via Resend to ${toEmails.length} recipient(s).`,
+            messageId: data.id,
             to: toEmails,
             cc: ccEmails,
         });
