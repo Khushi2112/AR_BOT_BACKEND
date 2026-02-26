@@ -43,11 +43,16 @@ router.get('/preview/:invoiceId', async (req, res) => {
         }).sort({ invoiceDate: 1 });
 
         const { senderName, fromEmail, senderPhone } = req.query;
+        const company = await CustomerEmail.findOne({ companyName: invoice.companyName });
+        const toEmails = company?.toEmails?.filter(Boolean) || [];
+        const ccEmails = company?.ccEmails?.filter(Boolean) || [];
 
         const htmlBody = getInvoiceEmailTemplate(companyInvoices, {
             senderName,
             fromEmail,
             senderPhone,
+            toEmails,
+            ccEmails,
             invoiceNo: invoice.invoiceNumber || invoice.invoice_number
         });
 
@@ -92,6 +97,8 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             senderName,
             fromEmail,
             senderPhone,
+            toEmails,
+            ccEmails,
             invoiceNo
         });
 
