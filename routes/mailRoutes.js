@@ -1,5 +1,5 @@
 import express from 'express';
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import Invoice from '../models/Invoice.js';
 import CustomerEmail from '../models/CustomerEmail.js';
 import path from 'path';
@@ -16,26 +16,8 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Create transporter - configured for Port 587 (STARTTLS) for better cloud reliability
-const createTransporter = () => {
-    console.log('[MAIL] Creating transporter for:', process.env.EMAIL_USER);
-    return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false, // TLS
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
-        },
-        connectionTimeout: 20000,
-        greetingTimeout: 20000,
-        socketTimeout: 30000,
-        tls: {
-            rejectUnauthorized: false, // Helps in some cloud environments
-            servername: 'smtp.gmail.com'
-        }
-    });
-};
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 // GET /api/mail/preview/:invoiceId
 router.get('/preview/:invoiceId', async (req, res) => {
@@ -94,19 +76,13 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             return res.status(400).json({ message: 'No TO email addresses configured for this company. Please add them in Company Emails page.' });
         }
 
-        console.log(`[MAIL] Starting send-invoice (Personal Gmail) for company: ${invoice.companyName}`);
-        console.log(`[MAIL] From: ${process.env.EMAIL_USER}, To: ${toEmails.join(', ')}`);
-
-        const transporter = createTransporter();
-        console.log('[MAIL] Transporter created. Verifying connection...');
-
-        try {
-            await transporter.verify();
-            console.log('[MAIL] SMTP Connection verified successfully');
-        } catch (verifyErr) {
-            console.error('[MAIL] SMTP Verification FAILED:', verifyErr);
-            throw new Error(`SMTP Connection Failed: ${verifyErr.message}. Verify Render Env Vars.`);
+        if (!process.env.RESEND_API_KEY) {
+            console.error('[MAIL] RESEND_API_KEY is missing');
+            return res.status(500).json({ message: 'Mail server configuration error: RESEND_API_KEY is missing.' });
         }
+
+        console.log(`[MAIL] Starting send-invoice (Resend) for company: ${invoice.companyName}`);
+        console.log(`[MAIL] To: ${toEmails.join(', ')}`);
 
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || invoice._id.toString().slice(-6).toUpperCase();
 
@@ -126,42 +102,53 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
         if (fs.existsSync(logo1Path)) {
             attachments.push({
                 filename: 'Picture1.png',
-                path: logo1Path,
-                cid: 'logo1'
+                content: fs.readFileSync(logo1Path),
+                content_id: 'logo1'
             });
         }
         if (fs.existsSync(logo2Path)) {
             attachments.push({
                 filename: 'Picture2.png',
-                path: logo2Path,
-                cid: 'logo2'
+                content: fs.readFileSync(logo2Path),
+                content_id: 'logo2'
             });
         }
 
         const mailOptions = {
-            from: `"${senderName || 'Accounts Receivable Team'}" <${process.env.EMAIL_USER}>`,
-            replyTo: fromEmail || process.env.EMAIL_USER,
-            to: toEmails.join(', '),
-            cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
+            from: `${senderName || 'Accounts Receivable Team'} <onboarding@resend.dev>`, // Resend requires verified domain or onboarding address
+            to: toEmails,
+            cc: ccEmails.length > 0 ? ccEmails : undefined,
+            reply_to: fromEmail || 'finance@tecnoprism.com',
             subject: `Invoice Overdue/Due Notice — ${invoice.companyName}`,
             html: htmlBody,
             attachments: attachments
         };
 
-        console.log(`[MAIL] Attempting deliver to ${mailOptions.to} via Port 587...`);
-        const info = await transporter.sendMail(mailOptions);
-        console.log(`[MAIL] Success! MessageId: ${info.messageId}`);
+        // Note: Resend "from" field format is slightly different or requires domain verification. 
+        // If the user hasn't verified a domain, they MUST use onboarding@resend.dev.
+        // I will keep it as onboarding@resend.dev for now as it's the safest default for a new setup.
+
+        console.log(`[MAIL] Attempting delivery to ${mailOptions.to.join(', ')} via Resend...`);
+
+        const { data, error } = await resend.emails.send(mailOptions);
+
+        if (error) {
+            console.error('[MAIL] Resend API Error:', error);
+            throw new Error(`Resend API Error: ${error.message}`);
+        }
+
+        console.log(`[MAIL] Success! Message ID: ${data.id}`);
 
         res.json({
             message: `Email sent successfully to ${toEmails.length} recipient(s).`,
-            messageId: info.messageId,
+            messageId: data.id,
             to: toEmails,
             cc: ccEmails,
         });
 
     } catch (error) {
         console.error('Email send error:', error);
-        res.status(500).json({ message: error.message || 'Failed to send email.' });
+        res.status(500).json({ message: error.message || 'Failed to send email via Resend.' });
     }
 });
 
