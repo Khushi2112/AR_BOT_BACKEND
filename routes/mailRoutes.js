@@ -105,8 +105,8 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
         }
 
         const mailOptions = {
-            from: `"${senderName || 'Accounts Receivable Team'}" <${fromEmail || process.env.EMAIL_USER}>`,
-            replyTo: fromEmail,
+            from: `"${senderName || 'Accounts Receivable Team'}" <${process.env.EMAIL_USER}>`,
+            replyTo: fromEmail || process.env.EMAIL_USER,
             to: toEmails.join(', '),
             cc: ccEmails.length > 0 ? ccEmails.join(', ') : undefined,
             subject: `Invoice Overdue/Due Notice — ${invoice.companyName}`,
@@ -114,7 +114,9 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             attachments: attachments
         };
 
+        console.log(`Sending email to: ${mailOptions.to}${mailOptions.cc ? ` (CC: ${mailOptions.cc})` : ''} from: ${mailOptions.from}`);
         await transporter.sendMail(mailOptions);
+        console.log(`Email successfully sent to ${invoice.companyName}`);
 
         res.json({
             message: `Email sent successfully to ${toEmails.length} recipient(s)${ccEmails.length > 0 ? ` and ${ccEmails.length} CC` : ''}.`,
