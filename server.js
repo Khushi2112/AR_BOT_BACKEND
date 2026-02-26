@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 5000;
 // app.use(cors());
 // Replace app.use(cors()); with this:
 app.use(cors({
-    origin: 'https://ar-bot-frontend.vercel.app', // No trailing slash
+    origin: ['https://ar-bot-frontend.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true

@@ -14,13 +14,18 @@ const __dirname = path.dirname(__filename);
 const router = express.Router();
 
 // Create transporter - configured via environment variables
-const createTransporter = () => nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE || 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    },
-});
+const createTransporter = () => {
+    console.log('Creating transporter with:', process.env.EMAIL_USER);
+    return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
+    });
+};
 
 // GET /api/mail/preview/:invoiceId
 router.get('/preview/:invoiceId', async (req, res) => {
