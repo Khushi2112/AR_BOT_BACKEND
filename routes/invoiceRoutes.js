@@ -1,6 +1,5 @@
 import express from 'express';
 import Invoice from '../models/Invoice.js';
-import CustomerEmail from '../models/CustomerEmail.js';
 
 
 const router = express.Router();
