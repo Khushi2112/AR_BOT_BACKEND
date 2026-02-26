@@ -15,7 +15,7 @@ const router = express.Router();
 
 // Create transporter - configured via environment variables
 const createTransporter = () => {
-    console.log('Creating transporter with:', process.env.EMAIL_USER);
+    console.log('[MAIL] Creating transporter with:', process.env.EMAIL_USER);
     return nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 465,
@@ -24,6 +24,9 @@ const createTransporter = () => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+        connectionTimeout: 10000, // 10s
+        greetingTimeout: 10000,   // 10s
+        socketTimeout: 15000,     // 15s
     });
 };
 
@@ -79,6 +82,7 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             return res.status(400).json({ message: 'No TO email addresses configured for this company. Please add them in Company Emails page.' });
         }
 
+        console.log(`[MAIL] Starting send-invoice for invoice: ${req.params.invoiceId}`);
         const transporter = createTransporter();
 
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || invoice._id.toString().slice(-6).toUpperCase();
@@ -119,9 +123,9 @@ router.post('/send-invoice/:invoiceId', async (req, res) => {
             attachments: attachments
         };
 
-        console.log(`Sending email to: ${mailOptions.to}${mailOptions.cc ? ` (CC: ${mailOptions.cc})` : ''} from: ${mailOptions.from}`);
+        console.log(`[MAIL] Attempting to send to: ${mailOptions.to}`);
         await transporter.sendMail(mailOptions);
-        console.log(`Email successfully sent to ${invoice.companyName}`);
+        console.log(`[MAIL] Success: Email sent to ${invoice.companyName}`);
 
         res.json({
             message: `Email sent successfully to ${toEmails.length} recipient(s)${ccEmails.length > 0 ? ` and ${ccEmails.length} CC` : ''}.`,
