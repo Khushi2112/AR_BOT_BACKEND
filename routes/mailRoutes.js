@@ -17,16 +17,17 @@ const router = express.Router();
 const createTransporter = () => {
     console.log('[MAIL] Creating transporter with:', process.env.EMAIL_USER);
     return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
-        connectionTimeout: 10000, // 10s
-        greetingTimeout: 10000,   // 10s
-        socketTimeout: 15000,     // 15s
+        connectionTimeout: 15000, // 15s
+        greetingTimeout: 15000,   // 15s
+        socketTimeout: 20000,     // 20s
+        tls: {
+            rejectUnauthorized: false // Helps in some cloud environments with cert issues
+        }
     });
 };
 
