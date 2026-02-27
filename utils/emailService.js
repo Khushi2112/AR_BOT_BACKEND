@@ -21,11 +21,12 @@ export const sendInvoiceEmail = async (invoice, config) => {
         throw new Error(`No "To" email addresses configured for ${invoice.companyName}.`);
     }
 
-    // 2. Setup transporter (Forcing IPv4 to fix ENETUNREACH on live server)
+    // 2. Setup transporter (Using port 587/STARTTLS to bypass common port 465 blocks on live servers)
     const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        port: 587,
+        secure: false, // false for port 587
+        requireTLS: true,
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
