@@ -3,7 +3,7 @@
  * Professional and Premium HTML template for Invoice Statements
  */
 
-export const getInvoiceEmailTemplate = (invoice) => {
+export const getInvoiceEmailTemplate = (invoice, config) => {
     const {
         invoiceNumber,
         invoice_number,
@@ -57,6 +57,11 @@ export const getInvoiceEmailTemplate = (invoice) => {
             
             <div class="message-box">
                 The Invoice’s given below will be due on the due date’s mentioned in the table below. We request you to arrange for its payment on its due date.
+            </div>
+
+            <div style="margin-bottom: 20px; font-size: 13px; color: #475569;">
+                <strong>To:</strong> ${config.toEmails.join(', ')} <br>
+                ${config.ccEmails.length > 0 ? `<strong>CC:</strong> ${config.ccEmails.join(', ')}` : ''}
             </div>
 
             <table class="table">

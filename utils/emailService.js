@@ -11,8 +11,22 @@ dotenv.config();
  * @returns {Promise<Object>} Nodemailer response
  */
 export const sendInvoiceEmail = async (invoice, config) => {
-    if (!config || !config.toEmails || config.toEmails.length === 0) {
-        throw new Error('No configuration found for this company');
+    console.log(`[EMAIL] Preparing to send email for: ${invoice.companyName}`);
+    console.log(`[EMAIL] Raw config from DB:`, {
+        to: config.toEmails,
+        cc: config.ccEmails
+    });
+
+    const toRecipients = (config.toEmails || []).filter(email => email && email.trim() !== '');
+    const ccRecipients = (config.ccEmails || []).filter(email => email && email.trim() !== '');
+
+    console.log(`[EMAIL] Processed recipients:`, {
+        to: toRecipients,
+        cc: ccRecipients
+    });
+
+    if (toRecipients.length === 0) {
+        throw new Error(`No valid "To" email addresses found for ${invoice.companyName}. Please check your configuration.`);
     }
 
     const transporter = nodemailer.createTransport({
@@ -23,23 +37,30 @@ export const sendInvoiceEmail = async (invoice, config) => {
         }
     });
 
-    const htmlContent = getInvoiceEmailTemplate(invoice);
+    const htmlContent = getInvoiceEmailTemplate(invoice, config);
     const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || 'N/A';
 
     const mailOptions = {
-        from: `"Finance Team" <${process.env.EMAIL_USER}>`,
-        to: config.toEmails.join(', '),
-        cc: config.ccEmails.length > 0 ? config.ccEmails.join(', ') : undefined,
+        from: `"Accounts Receivable" <${process.env.EMAIL_USER}>`,
+        to: toRecipients.join(', '),
+        cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : undefined,
         subject: `Invoice Statement #${invoiceNo} - ${invoice.companyName}`,
         html: htmlContent
     };
 
+    console.log(`[EMAIL] SMTP Mail Options:`, {
+        from: mailOptions.from,
+        to: mailOptions.to,
+        cc: mailOptions.cc,
+        subject: mailOptions.subject
+    });
+
     try {
         const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent: ' + info.response);
+        console.log('[EMAIL] SMTP Success info:', info);
         return info;
     } catch (error) {
-        console.error('SMTP Error:', error);
-        throw new Error('Failed to send email via Gmail. Please check your App Password.');
+        console.error('[EMAIL] SMTP Error:', error);
+        throw new Error(`Failed to send email to ${toRecipients.join(', ')}. ${error.message}`);
     }
 };
