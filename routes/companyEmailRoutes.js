@@ -4,38 +4,55 @@ import Invoice from '../models/Invoice.js';
 
 const router = express.Router();
 
-// GET all unique companies from invoices with their email configurations
+// GET all companies (Configurations + unique ones from Invoices)
 router.get('/', async (req, res) => {
     try {
-        // Get all unique company names from Invoices
+        // 1. Get all saved configurations
+        const allConfigs = await CompanyEmail.find().sort({ companyName: 1 });
+
+        // 2. Get all unique company names from Invoices
         const invoiceCompanies = await Invoice.distinct('companyName');
 
-        // Get all existing configurations
-        const configurations = await CompanyEmail.find();
-        const configMap = {};
-        configurations.forEach(c => {
-            const normalized = c.companyName.trim().toLowerCase();
-            configMap[normalized] = c;
+        // 3. Create a Map of existing configs for easy lookup
+        const configMap = new Map();
+        allConfigs.forEach(c => {
+            configMap.set(c.companyName.trim().toLowerCase(), c);
         });
 
-        // Clean and process unique names
-        const result = Array.from(new Set(invoiceCompanies
-            .map(name => name ? name.trim() : null)
-            .filter(name => {
-                if (!name) return false;
-                const lowerName = name.toLowerCase();
-                const garbageValues = ['bill to', 'customer', 'n/a', 'unknown', 'name', 'test'];
-                return !garbageValues.includes(lowerName);
-            })
-        )).map(name => {
-            const normalized = name.toLowerCase();
-            return {
-                companyName: name,
-                config: configMap[normalized] || null
-            };
-        }).sort((a, b) => a.companyName.localeCompare(b.companyName));
+        // 4. Combine both lists
+        const combinedResults = [];
 
-        res.json(result);
+        // First add all saved configurations
+        allConfigs.forEach(c => {
+            combinedResults.push({
+                companyName: c.companyName,
+                config: c
+            });
+        });
+
+        // Then add companies from invoices that DON'T have a config yet
+        const garbageValues = ['bill to', 'customer', 'n/a', 'unknown', 'name', 'test', null, undefined];
+        invoiceCompanies.forEach(name => {
+            if (!name) return;
+            const trimmedName = name.trim();
+            const lowerName = trimmedName.toLowerCase();
+
+            if (garbageValues.includes(lowerName)) return;
+
+            if (!configMap.has(lowerName)) {
+                combinedResults.push({
+                    companyName: trimmedName,
+                    config: null
+                });
+                // Add to map to prevent duplicates if multiple variations exist in invoices
+                configMap.set(lowerName, null);
+            }
+        });
+
+        // Sort by name
+        combinedResults.sort((a, b) => a.companyName.localeCompare(b.companyName));
+
+        res.json(combinedResults);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
