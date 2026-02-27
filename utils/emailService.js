@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import dns from 'dns';
 import { getInvoiceEmailTemplate } from './emailTemplates.js';
 
 dotenv.config();
@@ -21,25 +22,21 @@ export const sendInvoiceEmail = async (invoice, config) => {
         throw new Error(`No "To" email addresses configured for ${invoice.companyName}.`);
     }
 
-    // 2. Setup transporter (Hardened with timeouts and IPv4 forcing)
+    // 2. Setup transporter (Hardened IPv4 forcing)
     const transporter = nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 587,
-        secure: false,
-        requireTLS: true,
+        service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS
         },
-        family: 4,                  // Force IPv4
-        connectionTimeout: 20000,   // 20s
-        greetingTimeout: 20000,     // 20s
-        socketTimeout: 30000,       // 30s
-        debug: true,                // Detailed logs in console
-        logger: true                // Log internal SMTP traffic
+        connectionTimeout: 40000,
+        greetingTimeout: 40000,
+        socketTimeout: 60000,
+        // FORCE IPv4 ONLY to fix ENETUNREACH on restricted server networks
+        lookup: (hostname, options, callback) => {
+            dns.lookup(hostname, { family: 4 }, callback);
+        }
     });
-
-    // We removed the pooling/service:gmail for maximum reliability on live servers
 
     try {
         // 3. Generate content with safety
@@ -55,18 +52,23 @@ export const sendInvoiceEmail = async (invoice, config) => {
             replyTo: process.env.EMAIL_USER
         };
 
-        console.log(`[EMAIL] Sending to: ${mailOptions.to} (CC: ${mailOptions.cc || 'None'})`);
+        console.log(`[EMAIL] Attempting IPv4 send to: ${mailOptions.to}`);
 
         // 4. Send
         const info = await transporter.sendMail(mailOptions);
         console.log('[EMAIL] Success! Message ID:', info.messageId);
         return info;
     } catch (error) {
-        console.error('[EMAIL] Detailed Error:', error);
-        // Throw a cleaner message to the frontend
+        console.error('[EMAIL] Delivery Error:', error);
+
+        if (error.code === 'ENETUNREACH' || error.message.includes('ENETUNREACH')) {
+            throw new Error('Network Routing Error: The server could not reach Gmail. Please ensure IPv4 routing is enabled.');
+        }
+
         if (error.code === 'EAUTH') {
             throw new Error('Gmail authentication failed. Please check your App Password.');
         }
+
         throw new Error(`Email delivery failed: ${error.message}`);
     }
 };
