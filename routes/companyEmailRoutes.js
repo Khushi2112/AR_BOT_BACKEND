@@ -4,11 +4,38 @@ import Invoice from '../models/Invoice.js';
 
 const router = express.Router();
 
-// GET all configured company emails
+// GET all unique companies from invoices with their email configurations
 router.get('/', async (req, res) => {
     try {
-        const configurations = await CompanyEmail.find().sort({ companyName: 1 });
-        res.json(configurations);
+        // Get all unique company names from Invoices
+        const invoiceCompanies = await Invoice.distinct('companyName');
+
+        // Get all existing configurations
+        const configurations = await CompanyEmail.find();
+        const configMap = {};
+        configurations.forEach(c => {
+            const normalized = c.companyName.trim().toLowerCase();
+            configMap[normalized] = c;
+        });
+
+        // Clean and process unique names
+        const result = Array.from(new Set(invoiceCompanies
+            .map(name => name ? name.trim() : null)
+            .filter(name => {
+                if (!name) return false;
+                const lowerName = name.toLowerCase();
+                const garbageValues = ['bill to', 'customer', 'n/a', 'unknown', 'name', 'test'];
+                return !garbageValues.includes(lowerName);
+            })
+        )).map(name => {
+            const normalized = name.toLowerCase();
+            return {
+                companyName: name,
+                config: configMap[normalized] || null
+            };
+        }).sort((a, b) => a.companyName.localeCompare(b.companyName));
+
+        res.json(result);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
