@@ -20,11 +20,25 @@ router.get('/unconfigured', async (req, res) => {
         // Get all unique company names from Invoices
         const invoiceCompanies = await Invoice.distinct('companyName');
 
-        // Get all configured company names
-        const configuredCompanies = await CompanyEmail.distinct('companyName');
+        // Get all configured company names (trimmed and lowercased for comparison)
+        const configurations = await CompanyEmail.find({}, { companyName: 1 });
+        const configuredNamesSet = new Set(configurations.map(c => c.companyName.trim().toLowerCase()));
 
-        // Filter out those already configured
-        const unconfigured = invoiceCompanies.filter(name => name && !configuredCompanies.includes(name));
+        // Clean and filter invoice company names
+        const unconfigured = Array.from(new Set(invoiceCompanies
+            .map(name => name ? name.trim() : null)
+            .filter(name => {
+                if (!name) return false;
+
+                // Filter out obvious garbage values from old data
+                const lowerName = name.toLowerCase();
+                const garbageValues = ['bill to', 'customer', 'n/a', 'unknown', 'name', 'test'];
+                if (garbageValues.includes(lowerName)) return false;
+
+                // Filter out those already configured (case-insensitive)
+                return !configuredNamesSet.has(lowerName);
+            })
+        )).sort();
 
         res.json(unconfigured);
     } catch (error) {
