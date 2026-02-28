@@ -1,18 +1,21 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import dotenv from 'dotenv';
-import dns from 'dns';
 import { getInvoiceEmailTemplate } from './emailTemplates.js';
 
 dotenv.config();
 
+// Use Resend for delivery because it works over HTTP (Port 443)
+// This is required because Render.com blocks SMTP ports (465/587) on the free tier.
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 /**
- * Send an automated invoice email using Gmail SMTP
+ * Send an automated invoice email using Resend (HTTP API)
  * @param {Object} invoice - The invoice document
  * @param {Object} config - The CompanyEmail configuration
- * @returns {Promise<Object>} Nodemailer response
+ * @returns {Promise<Object>} Resend response
  */
 export const sendInvoiceEmail = async (invoice, config) => {
-    console.log(`[EMAIL] Starting delivery for: ${invoice.companyName}`);
+    console.log(`[EMAIL] Using Resend API for: ${invoice.companyName}`);
 
     // 1. Clean and validate recipients
     const toRecipients = (config.toEmails || []).filter(email => email && email.trim() !== '');
@@ -22,53 +25,29 @@ export const sendInvoiceEmail = async (invoice, config) => {
         throw new Error(`No "To" email addresses configured for ${invoice.companyName}.`);
     }
 
-    // 2. Setup transporter (Hardened IPv4 forcing)
-    const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS
-        },
-        connectionTimeout: 40000,
-        greetingTimeout: 40000,
-        socketTimeout: 60000,
-        // FORCE IPv4 ONLY to fix ENETUNREACH on restricted server networks
-        lookup: (hostname, options, callback) => {
-            dns.lookup(hostname, { family: 4 }, callback);
-        }
-    });
-
     try {
-        // 3. Generate content with safety
         const htmlContent = getInvoiceEmailTemplate(invoice, config);
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || 'N/A';
 
-        const mailOptions = {
-            from: `"Accounts Receivable Team" <${process.env.EMAIL_USER}>`,
-            to: toRecipients.join(', '),
-            cc: ccRecipients.length > 0 ? ccRecipients.join(', ') : undefined,
+        // 2. Send via Resend HTTP API (No ports blocked)
+        const { data, error } = await resend.emails.send({
+            from: 'AR_EMAIL <onboarding@resend.dev>', // Name updated to AR_EMAIL
+            to: toRecipients,
+            cc: ccRecipients.length > 0 ? ccRecipients : undefined,
             subject: `Invoice Announcement #${invoiceNo} - ${invoice.companyName}`,
             html: htmlContent,
-            replyTo: process.env.EMAIL_USER
-        };
+            reply_to: process.env.EMAIL_USER // This allows replies to go to the user's Gmail
+        });
 
-        console.log(`[EMAIL] Attempting IPv4 send to: ${mailOptions.to}`);
+        if (error) {
+            console.error('[EMAIL] Resend Error:', error);
+            throw new Error(error.message);
+        }
 
-        // 4. Send
-        const info = await transporter.sendMail(mailOptions);
-        console.log('[EMAIL] Success! Message ID:', info.messageId);
-        return info;
+        console.log('[EMAIL] Success! ID:', data.id);
+        return data;
     } catch (error) {
-        console.error('[EMAIL] Delivery Error:', error);
-
-        if (error.code === 'ENETUNREACH' || error.message.includes('ENETUNREACH')) {
-            throw new Error('Network Routing Error: The server could not reach Gmail. Please ensure IPv4 routing is enabled.');
-        }
-
-        if (error.code === 'EAUTH') {
-            throw new Error('Gmail authentication failed. Please check your App Password.');
-        }
-
-        throw new Error(`Email delivery failed: ${error.message}`);
+        console.error('[EMAIL] Detailed API Error:', error);
+        throw new Error(`Email delivery blocked by Render or API: ${error.message}`);
     }
 };
