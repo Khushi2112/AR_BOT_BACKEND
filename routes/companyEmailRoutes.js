@@ -4,56 +4,54 @@ import Invoice from '../models/Invoice.js';
 
 const router = express.Router();
 
-// GET all companies (Configurations + unique ones from Invoices)
+// GET all companies (Configurations + discovery from Invoices)
 router.get('/', async (req, res) => {
     try {
-        // 1. Get all saved configurations
-        const allConfigs = await CompanyEmail.find().sort({ companyName: 1 });
-
-        // 2. Get all unique company names from Invoices
+        // 1. Get all unique company names from Invoices
         const invoiceCompanies = await Invoice.distinct('companyName');
-
-        // 3. Create a Map of existing configs for easy lookup
-        const configMap = new Map();
-        allConfigs.forEach(c => {
-            configMap.set(c.companyName.trim().toLowerCase(), c);
-        });
-
-        // 4. Combine both lists
-        const combinedResults = [];
-
-        // First add all saved configurations
-        allConfigs.forEach(c => {
-            combinedResults.push({
-                companyName: c.companyName,
-                config: c
-            });
-        });
-
-        // Then add companies from invoices that DON'T have a config yet
         const garbageValues = ['bill to', 'customer', 'n/a', 'unknown', 'name', 'test', null, undefined];
-        invoiceCompanies.forEach(name => {
-            if (!name) return;
+
+        // 2. Identify and create stubs for new companies
+        // We do this to make discovery PERSISTENT in the database
+        const existingConfigs = await CompanyEmail.find();
+        const configMap = new Map();
+        existingConfigs.forEach(c => configMap.set(c.companyName.trim().toLowerCase(), c));
+
+        const newStubs = [];
+        for (const name of invoiceCompanies) {
+            if (!name) continue;
             const trimmedName = name.trim();
             const lowerName = trimmedName.toLowerCase();
 
-            if (garbageValues.includes(lowerName)) return;
+            if (garbageValues.includes(lowerName)) continue;
 
             if (!configMap.has(lowerName)) {
-                combinedResults.push({
+                // Physically add to the CompanyEmail collection
+                newStubs.push({
                     companyName: trimmedName,
-                    config: null
+                    toEmails: [],
+                    ccEmails: []
                 });
-                // Add to map to prevent duplicates if multiple variations exist in invoices
-                configMap.set(lowerName, null);
+                // Add to map to prevent duplicates in current loop
+                configMap.set(lowerName, true);
             }
-        });
+        }
 
-        // Sort by name
-        combinedResults.sort((a, b) => a.companyName.localeCompare(b.companyName));
+        if (newStubs.length > 0) {
+            console.log(`[SYNC] Creating ${newStubs.length} new company stubs from invoices`);
+            await CompanyEmail.insertMany(newStubs);
+        }
 
-        res.json(combinedResults);
+        // 3. Return the updated, sorted list
+        const allConfigs = await CompanyEmail.find().sort({ companyName: 1 });
+        const results = allConfigs.map(c => ({
+            companyName: c.companyName,
+            config: c
+        }));
+
+        res.json(results);
     } catch (error) {
+        console.error('[SYNC ERROR]:', error);
         res.status(500).json({ message: error.message });
     }
 });
