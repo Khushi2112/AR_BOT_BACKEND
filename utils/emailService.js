@@ -22,17 +22,19 @@ export const sendInvoiceEmail = async (invoice, config) => {
     }
 
     try {
-        // 2. Setup Brevo Client with correct v3 pattern
-        let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        // 2. Setup Brevo Client with defensive initialization
+        // Some versions of the library export classes differently in ESM
+        const apiInstance = new (SibApiV3Sdk.TransactionalEmailsApi || SibApiV3Sdk.default.TransactionalEmailsApi)();
 
         // Configure API key
-        apiInstance.setApiKey(SibApiV3Sdk.TransactionalEmailsApiApiKeys.apiKey, process.env.BREVO_API_KEY);
+        const apiKey = SibApiV3Sdk.TransactionalEmailsApiApiKeys?.apiKey || SibApiV3Sdk.default?.TransactionalEmailsApiApiKeys?.apiKey;
+        apiInstance.setApiKey(apiKey, process.env.BREVO_API_KEY);
 
         const htmlContent = getInvoiceEmailTemplate(invoice, config);
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || 'N/A';
 
         // 3. Prepare Email Request
-        const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        const sendSmtpEmail = new (SibApiV3Sdk.SendSmtpEmail || SibApiV3Sdk.default.SendSmtpEmail)();
         sendSmtpEmail.subject = `Invoice Announcement #${invoiceNo} - ${invoice.companyName}`;
         sendSmtpEmail.htmlContent = htmlContent;
         sendSmtpEmail.sender = { name: "AR_EMAIL", email: "solankinihal111@gmail.com" };
@@ -50,15 +52,12 @@ export const sendInvoiceEmail = async (invoice, config) => {
         return data;
 
     } catch (error) {
-        // Detailed error logging for Brevo
-        const errorDetail = error.response ? error.response.body : error.message;
-        console.error('[EMAIL] Brevo API Error:', errorDetail);
+        console.error('[EMAIL] Brevo API Error:', error.response ? error.response.body : error.message);
 
-        // Return a cleaner error message to the UI
         const msg = (error.response && error.response.body && error.response.body.message)
             ? error.response.body.message
             : error.message;
 
-        throw new Error(`Email delivery failed (Brevo): ${msg}`);
+        throw new Error(`Email delivery blocked by Brevo: ${msg}`);
     }
 };
