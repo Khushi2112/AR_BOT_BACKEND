@@ -31,11 +31,6 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/company-emails', companyEmailRoutes);
 
-// Static assets for emails (Signature Images)
-const frontendImageDir = path.resolve(__dirname, '..', 'frontend', 'image');
-app.use('/images', express.static(frontendImageDir));
-console.log(`[SYSTEM] Serving signature images from: ${frontendImageDir}`);
-
 // Health Check
 app.get('/', (req, res) => {
     res.send('Finance Portal API is running');
