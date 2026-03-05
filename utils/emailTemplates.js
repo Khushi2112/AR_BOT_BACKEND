@@ -3,7 +3,7 @@
  * Professional, Responsive, and Premium HTML template for Invoice Statements
  */
 
-export const getInvoiceEmailTemplate = (invoice, config, type = 'due') => {
+export const getInvoiceEmailTemplate = (invoice, config, type = 'due', assets = {}) => {
     const {
         invoiceNumber,
         invoice_number,
@@ -163,6 +163,13 @@ export const getInvoiceEmailTemplate = (invoice, config, type = 'due') => {
                                 <p style="margin: 0; font-size: 16px; font-weight: 700; color: #0f172a;">Best Regards,</p>
                                 <p style="margin: 4px 0 0 0; font-size: 16px; font-weight: 500; color: #475569;">Accounts Receivable Team</p>
                                 <p style="margin: 2px 0 0 0; font-size: 14px; font-weight: 800; color: #059669;">AR_EMAIL Automated Bot</p>
+                                
+                                ${assets.picture1 || assets.picture2 ? `
+                                <div style="margin-top: 20px;">
+                                    ${assets.picture1 ? `<img src="${assets.picture1}" alt="Signature 1" style="max-height: 80px; margin-right: 15px; margin-bottom: 10px; display: inline-block;">` : ''}
+                                    ${assets.picture2 ? `<img src="${assets.picture2}" alt="Signature 2" style="max-height: 80px; margin-bottom: 10px; display: inline-block;">` : ''}
+                                </div>
+                                ` : ''}
                             </td>
                         </tr>
                     </table>

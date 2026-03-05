@@ -1,7 +1,40 @@
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { getInvoiceEmailTemplate } from './emailTemplates.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
+
+/**
+ * Helper to read and encode signature images to Base64
+ */
+const getSignatureAssets = () => {
+    const assets = {};
+    try {
+        // Look for images in the frontend/image folder
+        const imageDir = path.join(__dirname, '..', '..', 'frontend', 'image');
+
+        const pic1Path = path.join(imageDir, 'Picture1.png');
+        const pic2Path = path.join(imageDir, 'Picture2.png');
+
+        if (fs.existsSync(pic1Path)) {
+            const pic1Data = fs.readFileSync(pic1Path);
+            assets.picture1 = `data:image/png;base64,${pic1Data.toString('base64')}`;
+        }
+
+        if (fs.existsSync(pic2Path)) {
+            const pic2Data = fs.readFileSync(pic2Path);
+            assets.picture2 = `data:image/png;base64,${pic2Data.toString('base64')}`;
+        }
+    } catch (err) {
+        console.error('[EMAIL] Failed to load signature assets:', err.message);
+    }
+    return assets;
+};
 
 /**
  * Send an automated invoice email using Brevo (Direct HTTP API)
@@ -27,7 +60,8 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
     }
 
     try {
-        const htmlContent = getInvoiceEmailTemplate(invoice, config, type);
+        const assets = getSignatureAssets();
+        const htmlContent = getInvoiceEmailTemplate(invoice, config, type, assets);
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || 'N/A';
 
         // Dynamic Subject based on type
