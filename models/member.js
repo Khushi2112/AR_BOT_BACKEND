@@ -39,14 +39,6 @@ const memberSchema = new mongoose.Schema({
         required: true,
         enum: ['Active', 'Inactive'],
         default: 'Active'
-    },
-    lastActiveAt: {
-        type: Date,
-        default: Date.now
-    },
-    isLoggedIn: {
-        type: Boolean,
-        default: false
     }
 }, {
     timestamps: true

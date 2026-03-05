@@ -14,15 +14,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET online count
-router.get('/online-count', async (req, res) => {
-    try {
-        const onlineCount = await Member.countDocuments({ isLoggedIn: true });
-        res.json({ count: onlineCount });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
 
 // POST new member
 router.post('/', async (req, res) => {
@@ -53,14 +44,8 @@ router.post('/login', async (req, res) => {
             return res.status(403).json({ message: 'Your account is inactive. Please contact admin.' });
         }
 
-        // Update lastActiveAt and isLoggedIn
-        member.lastActiveAt = new Date();
-        member.isLoggedIn = true;
-        await member.save();
-
         res.json({
             message: 'Login successful',
-            onlineCount: await Member.countDocuments({ isLoggedIn: true }),
             user: {
                 id: member._id,
                 name: member.name,
@@ -108,15 +93,5 @@ router.delete('/:id', async (req, res) => {
     }
 });
 
-// POST member logout
-router.post('/logout', async (req, res) => {
-    const { userId } = req.body;
-    try {
-        await Member.findByIdAndUpdate(userId, { isLoggedIn: false });
-        res.json({ message: 'Logout successful' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
 
 export default router;
