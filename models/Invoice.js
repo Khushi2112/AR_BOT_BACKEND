@@ -3,6 +3,7 @@ import CompanyEmail from './CompanyEmail.js';
 
 const invoiceSchema = new mongoose.Schema({
     invoiceNumber: { type: String, required: true, unique: true },
+    invoice_number: { type: String }, // Legacy/Sync support
     invoiceDate: { type: String, required: true },
     dueDate: { type: String, required: true },
     Terms: { type: String, required: true },

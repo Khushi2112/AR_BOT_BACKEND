@@ -167,7 +167,7 @@ router.delete('/:id', async (req, res) => {
 // POST send email for invoice
 router.post('/:id/send-email', async (req, res) => {
     try {
-        const invoice = await Invoice.findById(req.params.id);
+        const invoice = await Invoice.findById(req.params.id).lean();
         if (!invoice) {
             return res.status(404).json({ message: 'Invoice not found' });
         }
