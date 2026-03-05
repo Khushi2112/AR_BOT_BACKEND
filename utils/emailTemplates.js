@@ -161,15 +161,19 @@ export const getInvoiceEmailTemplate = (invoice, config, type = 'due', assets = 
                         <tr>
                             <td style="border-top: 2px solid #f1f5f9; padding-top: 30px;">
                                 <p style="margin: 0; font-size: 16px; font-weight: 500; color: #0f172a;">Best Regards,</p>
-                                <div style="height: 24px;"></div>
+                                <div style="height: 16px;"></div>
                                 <p style="margin: 0; font-size: 16px; font-weight: 500; color: #0f172a;">Accounts Receivable Team</p>
                                 
-                                ${assets.picture1 || assets.picture2 ? `
-                                <div style="margin-top: 15px;">
-                                    ${assets.picture1 ? `<img src="${assets.picture1}" alt="Tecnoprism" style="max-height: 70px; margin-right: 10px; display: inline-block; vertical-align: middle;">` : ''}
-                                    ${assets.picture2 ? `<img src="${assets.picture2}" alt="Partner" style="max-height: 70px; display: inline-block; vertical-align: middle;">` : ''}
-                                </div>
-                                ` : ''}
+                                <table cellpadding="0" cellspacing="0" border="0" style="margin-top: 15px;">
+                                    <tr>
+                                        <td style="padding-right: 15px;">
+                                            ${assets.picture1 ? `<img src="${assets.picture1}" alt="Tecnoprism" style="max-height: 70px; display: block;">` : ''}
+                                        </td>
+                                        <td>
+                                            ${assets.picture2 ? `<img src="${assets.picture2}" alt="Partner" style="max-height: 70px; display: block;">` : ''}
+                                        </td>
+                                    </tr>
+                                </table>
                             </td>
                         </tr>
                     </table>

@@ -9,30 +9,18 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
-/**
- * Helper to read and encode signature images to Base64
- */
 const getSignatureAssets = () => {
     const assets = {};
-    try {
-        const arSystemDir = path.resolve(__dirname, '..', '..');
-        const imageDir = path.join(arSystemDir, 'frontend', 'image');
 
-        const pic1Path = path.join(imageDir, 'Picture1.png');
-        const pic2Path = path.join(imageDir, 'Picture2.png');
+    // Use the configured API_BASE_URL or fallback to localhost for development
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
 
-        if (fs.existsSync(pic1Path)) {
-            const pic1Data = fs.readFileSync(pic1Path);
-            assets.picture1 = `data:image/png;base64,${pic1Data.toString('base64')}`;
-        }
+    // These are now served statically via app.use('/images', ...) in server.js
+    assets.picture1 = `${baseUrl}/images/Picture1.png`;
+    assets.picture2 = `${baseUrl}/images/Picture2.png`;
 
-        if (fs.existsSync(pic2Path)) {
-            const pic2Data = fs.readFileSync(pic2Path);
-            assets.picture2 = `data:image/png;base64,${pic2Data.toString('base64')}`;
-        }
-    } catch (err) {
-        console.error('[EMAIL] Failed to load signature assets for Base64 embedding:', err.message);
-    }
+    console.log(`[EMAIL] Signature URLs generated: ${assets.picture1}, ${assets.picture2}`);
+
     return assets;
 };
 

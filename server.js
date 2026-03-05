@@ -32,7 +32,9 @@ app.use('/api/members', memberRoutes);
 app.use('/api/company-emails', companyEmailRoutes);
 
 // Static assets for emails (Signature Images)
-app.use('/images', express.static(path.join(__dirname, '..', 'frontend', 'image')));
+const frontendImageDir = path.resolve(__dirname, '..', 'frontend', 'image');
+app.use('/images', express.static(frontendImageDir));
+console.log(`[SYSTEM] Serving signature images from: ${frontendImageDir}`);
 
 // Health Check
 app.get('/', (req, res) => {
