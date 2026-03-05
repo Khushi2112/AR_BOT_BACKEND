@@ -16,7 +16,11 @@ const getSignatureAssets = () => {
     const assets = {};
     try {
         // Look for images in the frontend/image folder
-        const imageDir = path.join(__dirname, '..', '..', 'frontend', 'image');
+        // __dirname is backend/utils
+        const arSystemDir = path.resolve(__dirname, '..', '..');
+        const imageDir = path.join(arSystemDir, 'frontend', 'image');
+
+        console.log(`[EMAIL] Attempting to load signature assets from: ${imageDir}`);
 
         const pic1Path = path.join(imageDir, 'Picture1.png');
         const pic2Path = path.join(imageDir, 'Picture2.png');
@@ -24,11 +28,17 @@ const getSignatureAssets = () => {
         if (fs.existsSync(pic1Path)) {
             const pic1Data = fs.readFileSync(pic1Path);
             assets.picture1 = `data:image/png;base64,${pic1Data.toString('base64')}`;
+            console.log(`[EMAIL] Successfully loaded Picture1.png (${pic1Data.length} bytes)`);
+        } else {
+            console.warn(`[EMAIL] Picture1.png not found at: ${pic1Path}`);
         }
 
         if (fs.existsSync(pic2Path)) {
             const pic2Data = fs.readFileSync(pic2Path);
             assets.picture2 = `data:image/png;base64,${pic2Data.toString('base64')}`;
+            console.log(`[EMAIL] Successfully loaded Picture2.png (${pic2Data.length} bytes)`);
+        } else {
+            console.warn(`[EMAIL] Picture2.png not found at: ${pic2Path}`);
         }
     } catch (err) {
         console.error('[EMAIL] Failed to load signature assets:', err.message);
