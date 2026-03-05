@@ -1,11 +1,5 @@
 import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { getInvoiceEmailTemplate } from './emailTemplates.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -13,36 +7,20 @@ dotenv.config();
  * Helper to read and encode signature images to Base64
  */
 const getSignatureAssets = () => {
-    const assets = {};
-    try {
-        // Look for images in the frontend/image folder
-        // __dirname is backend/utils
-        const arSystemDir = path.resolve(__dirname, '..', '..');
-        const imageDir = path.join(arSystemDir, 'frontend', 'image');
+    const assets = {
+        templateData: {},
+        attachments: [] // Brevo Transactional doesn't support CID well, using full URLs
+    };
 
-        console.log(`[EMAIL] Attempting to load signature assets from: ${imageDir}`);
+    // Use the configured API_BASE_URL or fallback to localhost for development
+    const baseUrl = process.env.API_BASE_URL || 'http://localhost:5000';
 
-        const pic1Path = path.join(imageDir, 'Picture1.png');
-        const pic2Path = path.join(imageDir, 'Picture2.png');
+    // These are now served statically via app.use('/images', ...) in server.js
+    assets.templateData.picture1 = `${baseUrl}/images/Picture1.png`;
+    assets.templateData.picture2 = `${baseUrl}/images/Picture2.png`;
 
-        if (fs.existsSync(pic1Path)) {
-            const pic1Data = fs.readFileSync(pic1Path);
-            assets.picture1 = `data:image/png;base64,${pic1Data.toString('base64')}`;
-            console.log(`[EMAIL] Successfully loaded Picture1.png (${pic1Data.length} bytes)`);
-        } else {
-            console.warn(`[EMAIL] Picture1.png not found at: ${pic1Path}`);
-        }
+    console.log(`[EMAIL] Signature URLs generated: ${assets.templateData.picture1}, ${assets.templateData.picture2}`);
 
-        if (fs.existsSync(pic2Path)) {
-            const pic2Data = fs.readFileSync(pic2Path);
-            assets.picture2 = `data:image/png;base64,${pic2Data.toString('base64')}`;
-            console.log(`[EMAIL] Successfully loaded Picture2.png (${pic2Data.length} bytes)`);
-        } else {
-            console.warn(`[EMAIL] Picture2.png not found at: ${pic2Path}`);
-        }
-    } catch (err) {
-        console.error('[EMAIL] Failed to load signature assets:', err.message);
-    }
     return assets;
 };
 
@@ -71,7 +49,7 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
 
     try {
         const assets = getSignatureAssets();
-        const htmlContent = getInvoiceEmailTemplate(invoice, config, type, assets);
+        const htmlContent = getInvoiceEmailTemplate(invoice, config, type, assets.templateData);
         const invoiceNo = invoice.invoiceNumber || invoice.invoice_number || 'N/A';
 
         // Dynamic Subject based on type
@@ -88,7 +66,8 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
             to: toRecipients.map(email => ({ email })),
             subject: subject,
             htmlContent: htmlContent,
-            replyTo: { email: "solankinihal111@gmail.com" }
+            replyTo: { email: "solankinihal111@gmail.com" },
+            attachment: assets.attachments
         };
 
         if (ccRecipients.length > 0) {

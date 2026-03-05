@@ -2,6 +2,12 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 import invoiceRoutes from './routes/invoiceRoutes.js';
 import memberRoutes from './routes/memberRoutes.js';
 import companyEmailRoutes from './routes/companyEmailRoutes.js';
@@ -24,6 +30,9 @@ app.use(express.json());
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/company-emails', companyEmailRoutes);
+
+// Static assets for emails (Signature Images)
+app.use('/images', express.static(path.join(__dirname, '..', 'frontend', 'image')));
 
 // Health Check
 app.get('/', (req, res) => {
