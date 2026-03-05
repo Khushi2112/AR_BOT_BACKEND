@@ -1,5 +1,5 @@
 import express from 'express';
-import Member from '../models/member.js';
+import Member from '../models/Member.js';
 
 const router = express.Router();
 
@@ -9,6 +9,19 @@ router.get('/', async (req, res) => {
         const members = await Member.find().sort({ createdAt: -1 });
         console.log(`[MEMBERS] Loaded ${members.length} members`);
         res.json(members);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// GET online count
+router.get('/online-count', async (req, res) => {
+    try {
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const onlineCount = await Member.countDocuments({
+            lastActiveAt: { $gte: fifteenMinutesAgo }
+        });
+        res.json({ count: onlineCount });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -42,6 +55,10 @@ router.post('/login', async (req, res) => {
         if (member.status !== 'Active') {
             return res.status(403).json({ message: 'Your account is inactive. Please contact admin.' });
         }
+
+        // Update lastActiveAt
+        member.lastActiveAt = new Date();
+        await member.save();
         res.json({
             message: 'Login successful',
             user: {
