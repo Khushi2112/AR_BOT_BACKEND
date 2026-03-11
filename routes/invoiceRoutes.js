@@ -104,52 +104,75 @@ router.get('/', async (req, res) => {
     }
 });
 
-// GET financial statistics (Optimized)
+// GET financial statistics (Optimized & Fixed Date Logic)
 router.get('/stats', async (req, res) => {
     try {
-        const stats = await Invoice.aggregate([
-            {
-                $group: {
-                    _id: null,
-                    totalInvoices: { $sum: 1 },
-                    totalAmount: { $sum: "$total_Amount" },
-                    balanceDue: { $sum: "$balance_due" },
-                    paidCount: {
-                        $sum: { $cond: [{ $lte: ["$balance_due", 0] }, 1, 0] }
-                    },
-                    pendingCount: {
-                        $sum: { $cond: [{ $gt: ["$balance_due", 0] }, 1, 0] }
+        const invoices = await Invoice.find({}).lean();
+
+        let totalInvoices = invoices.length;
+        let totalAmount = 0;
+        let balanceDue = 0;
+        let paidAmount = 0;
+
+        let paidCount = 0;
+        let pendingCount = 0; // Due + Due Today
+        let overdueCount = 0;
+
+        let overdueAmount = 0;
+        let pendingAmount = 0;
+
+        for (const inv of invoices) {
+            const t = parseFloat(inv.total_Amount || 0);
+            const b = parseFloat(inv.balance_due || 0);
+            totalAmount += t;
+            balanceDue += b;
+
+            // Calculate actual paid portion for this invoice
+            const p = t - b;
+            if (p > 0) paidAmount += p;
+
+            const status = getPaymentStatus(inv);
+
+            if (status === 'Paid') {
+                paidCount++;
+            } else {
+                // Determine if the remaining balance is Overdue or Pending based on due date.
+                // 'Due', 'Due Today', or 'PartiallyPaid' (where date is not past) are Pending.
+                // getPaymentStatus already incorporates date logic, so if it returns Overdue, it's overdue.
+                // If it returns PartiallyPaid, we still need to check if it's past due to classify the remainder.
+                let isOverdue = false;
+                if (status === 'Overdue') {
+                    isOverdue = true;
+                } else if (status === 'PartiallyPaid') {
+                    // Check date explicitly for partial payments
+                    const today = new Date(); today.setHours(0, 0, 0, 0);
+                    let due = parseDate(inv.dueDate);
+                    if (due) {
+                        due.setHours(0, 0, 0, 0);
+                        if (due < today) isOverdue = true;
                     }
                 }
-            }
-        ]);
 
-        // Calculate Overdue (Simplified for now - can be refined with date logic)
-        const todayStr = new Date().toISOString().split('T')[0];
-        const overdue = await Invoice.aggregate([
-            {
-                $match: {
-                    balance_due: { $gt: 0 },
-                    dueDate: { $lt: todayStr }
-                }
-            },
-            {
-                $group: {
-                    _id: null,
-                    amount: { $sum: "$balance_due" },
-                    count: { $sum: 1 }
+                if (isOverdue) {
+                    overdueCount++;
+                    overdueAmount += b;
+                } else {
+                    pendingCount++;
+                    pendingAmount += b;
                 }
             }
-        ]);
-
-        const result = stats[0] || { totalInvoices: 0, totalAmount: 0, balanceDue: 0, paidCount: 0, pendingCount: 0 };
-        const overdueResult = overdue[0] || { amount: 0, count: 0 };
+        }
 
         res.json({
-            ...result,
-            overdueAmount: overdueResult.amount,
-            overdueCount: overdueResult.count,
-            paidAmount: result.totalAmount - result.balanceDue
+            totalInvoices,
+            totalAmount,
+            balanceDue,
+            paidAmount,
+            paidCount,
+            pendingCount,
+            overdueCount,
+            overdueAmount,
+            pendingAmount
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
