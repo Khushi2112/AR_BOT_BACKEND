@@ -82,3 +82,4 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
         throw new Error(error.message);
     }
 };
+
