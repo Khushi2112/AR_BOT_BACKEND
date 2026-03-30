@@ -40,7 +40,7 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
 
         // 2. Prepare Payload
         const payload = {
-            sender: { name: "Tecnoprism", email: "solankinihal111@gmail.com" },
+            sender: { name: "AR Finance Portal", email: "solankinihal111@gmail.com" },
             to: toRecipients.map(email => ({ email })),
             subject: subject,
             htmlContent: htmlContent,

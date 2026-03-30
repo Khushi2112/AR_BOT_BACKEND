@@ -87,7 +87,7 @@ export const getInvoiceEmailTemplate = (invoice, config, type = 'due') => {
             <!-- Header -->
             <tr>
                 <td style="background: linear-gradient(135deg, ${themeColor} 0%, ${secondaryColor} 100%); padding: 40px 20px; text-align: center;">
-                    <h1 class="header-h1" style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase;">Tecnoprism Finance Team</h1>
+                    <h1 class="header-h1" style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.025em; text-transform: uppercase;">AR Finance Portal Team</h1>
                     <p style="color: ${accentColor}; margin: 8px 0 0 0; font-size: 14px; font-weight: 500;">${title}</p>
                 </td>
             </tr>
