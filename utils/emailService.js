@@ -44,7 +44,7 @@ export const sendInvoiceEmail = async (invoice, config, type = 'due') => {
             to: toRecipients.map(email => ({ email })),
             subject: subject,
             htmlContent: htmlContent,
-            replyTo: { email: "solankinihal111@gmail.com" }
+            replyTo: { email: "khushi.taru@gmail.com" }
         };
 
         if (ccRecipients.length > 0) {
